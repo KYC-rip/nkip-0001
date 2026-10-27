@@ -75,11 +75,14 @@ export async function publishAttestationEvent(event: Event, relays: string[] = D
 }
 
 /**
- * NKIP-0001 v2 salt recovery for a NON-XMR payout (R17): encrypt the salt (as
- * its 64-hex string) with NIP-44 v2 from the issuer's Nostr key to a
- * client-supplied `recoveryPubHex` (x-only secp256k1, 64 hex). Returns the
- * NIP-44 payload, or null when there is no key/salt or the pubkey is malformed
- * (then the salt lives only in the user's own receipt — a valid fallback).
+ * NKIP-0001 v2 sender-side salt recovery (R17): encrypt the salt (as its 64-hex
+ * string) with NIP-44 v2 from the issuer's Nostr key to a client-supplied
+ * `recoveryPubHex` (x-only secp256k1, 64 hex). Add this whenever a recovery key
+ * was sent, for ANY payout — XMR included. A `salt_box` only opens for whoever
+ * OWNS the payout address, so `salt_nip44` is what lets the SENDER recover the
+ * salt when paying an address that isn't theirs (merchant, friend, exchange).
+ * Returns the NIP-44 payload, or null when there is no key/salt or the pubkey is
+ * malformed (then the salt lives only in the user's own receipt — a fallback).
  */
 export function buildSaltNip44(nostrPrivateKey: string, recoveryPubHex: string, saltHex: string): string | null {
   try {

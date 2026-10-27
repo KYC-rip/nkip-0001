@@ -74,7 +74,9 @@ const bindsToMyAddrs = (await nkip01Commitment(receipt.issuer, receipt.deposit_a
 ## Versions
 
 - **v1**: unsalted commitment `SHA-256("nkip01/1" ‖ 0 ‖ issuer ‖ 0 ‖ deposit ‖ 0 ‖ payout)`.
-- **v2** (spec rev 2026-10-27): adds a `salt` to the receipt and the commitment so the public attestation can't be linked to an order by someone who already knows the two addresses — random for transparent-chain deposits, zero for XMR. `salt_box` (Monero view-key ECDH) and `salt_nip44` (NIP-44 v2 to a client `recovery_pubkey`) let the counterparty recover the salt from the public attestation.
+- **v2** (spec rev 2026-10-27): adds a `salt` to the receipt and the commitment so the public attestation can't be linked to an order by someone who already knows the two addresses — random for transparent-chain deposits, zero for XMR. Salt recovery from the public attestation:
+  - `salt_box` (Monero view-key ECDH, XMR payouts) — opens for whoever **owns** the payout address, with nothing saved.
+  - `salt_nip44` (NIP-44 v2 to a client `recovery_pubkey`) — lets the **sender** recover the salt for **any** payout, XMR included. Send a `recovery_pubkey` whenever you're paying an address you don't own (a merchant, friend or exchange deposit), since `salt_box` would otherwise open only for the recipient. An XMR payout with a recovery key carries both.
 
 Both are supported; v1 receipts stay valid.
 
