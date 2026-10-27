@@ -95,3 +95,21 @@ export function buildSaltNip44(nostrPrivateKey: string, recoveryPubHex: string, 
     return null;
   }
 }
+
+/**
+ * The recipient side of {@link buildSaltNip44}: recover the salt from a
+ * `salt_nip44` payload with the recovery PRIVATE key (nsec or 32-byte hex) and
+ * the issuer's Nostr public key (the `pubkey` of the attestation event that
+ * carried it). Returns the 64-hex salt, or null on any failure.
+ */
+export function recoverSaltNip44(recoveryPrivateKey: string, issuerNostrPubHex: string, saltNip44: string): string | null {
+  try {
+    if (!recoveryPrivateKey || !saltNip44) return null;
+    const pub = String(issuerNostrPubHex || '').trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(pub)) return null;
+    const ck = nip44.getConversationKey(privBytes(recoveryPrivateKey), pub);
+    return nip44.decrypt(saltNip44, ck);
+  } catch {
+    return null;
+  }
+}

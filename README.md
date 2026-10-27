@@ -1,6 +1,6 @@
 # @kyc-rip/nkip-0001
 
-Reference implementation of **[NKIP-0001 — Verifiable Deposit Receipts](https://nkips.org/nkip-0001/)**: signed, interoperable deposit receipts for non-custodial / no-KYC swaps, with salted commitments, Nostr attestation witnessing, and salt recovery for both XMR (`salt_box`) and non-XMR (`salt_nip44`) payouts.
+Reference implementation of **[NKIP-0001 — Verifiable Deposit Receipts](https://nkips.org/nkip-0001/)**: signed, interoperable deposit receipts for non-custodial / no-KYC swaps, with salted commitments, Nostr attestation witnessing, and salt recovery via `salt_box` (XMR payouts, view-key ECDH) and `salt_nip44` (sender-side, any payout).
 
 Validated byte-for-byte against the spec's own v1 and v2 test vectors (run in CI).
 
@@ -67,8 +67,8 @@ const bindsToMyAddrs = (await nkip01Commitment(receipt.issuer, receipt.deposit_a
 | Module | Exports |
 |--------|---------|
 | receipt | `signReceipt`, `verifyReceipt`, `signAttestation`, `verifyAttestation`, `nkip01Commitment`, `jcsBytes`, `canonicalJson`, `nkip01KeyId`, `policyHash`, `saltForDeposit`, `randomSalt`, `ZERO_SALT`, `pubKeyB64Url`, types |
-| saltBox | `decodeMoneroAddress`, `buildSaltBox`, `recoverSaltBox` |
-| nostr | `buildAttestationEvent`, `publishAttestationEvent`, `buildSaltNip44`, `DEFAULT_RELAYS`, `EVENT_KIND_ATTESTATION` |
+| saltBox | `decodeMoneroAddress` (checksum-validated; refuses integrated addresses), `buildSaltBox`, `recoverSaltBox` |
+| nostr | `buildAttestationEvent`, `publishAttestationEvent`, `buildSaltNip44`, `recoverSaltNip44`, `DEFAULT_RELAYS`, `EVENT_KIND_ATTESTATION` |
 | manifest | `buildManifest` |
 
 ## Versions

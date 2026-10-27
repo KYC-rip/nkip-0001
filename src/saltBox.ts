@@ -13,6 +13,7 @@
  * and by issuer→wallet round-trip against the vector's view key.
  */
 import { ed25519 } from '@noble/curves/ed25519.js';
+import { keccak_256 } from '@noble/hashes/sha3.js';
 import type { Nkip01SaltBox } from './receipt.js';
 
 const Point = ed25519.Point;
@@ -39,8 +40,8 @@ function decodeBlock(chars: string, out: number[]): boolean {
 export interface MoneroAddressKeys { net: number; spend: Uint8Array; view: Uint8Array }
 
 /** Decode a Monero address to its network byte + public spend/view keys, or null
- *  if it is not a standard (18), subaddress (42) or integrated (19) mainnet
- *  address. */
+ *  if it is not a well-formed standard (18) or subaddress (42) mainnet address
+ *  with a valid checksum. Integrated addresses (net 19) are refused per spec. */
 export function decodeMoneroAddress(addr: string): MoneroAddressKeys | null {
   const a = String(addr || '');
   if (a.length !== 95 && a.length !== 106) return null;
@@ -49,8 +50,12 @@ export function decodeMoneroAddress(addr: string): MoneroAddressKeys | null {
     if (!decodeBlock(a.slice(i, Math.min(i + 11, a.length)), bytes)) return null;
   }
   const net = bytes[0];
-  if (net !== 18 && net !== 42 && net !== 19) return null;
-  if (bytes.length < 65) return null;
+  // Standard or subaddress only — integrated (19) is refused per spec.
+  if (net !== 18 && net !== 42) return null;
+  if (bytes.length !== 69) return null;
+  // keccak-256 checksum (last 4 bytes): a mistyped address must not decode.
+  const sum = keccak_256(Uint8Array.from(bytes.slice(0, 65)));
+  for (let i = 0; i < 4; i++) if (bytes[65 + i] !== sum[i]) return null;
   return { net, spend: Uint8Array.from(bytes.slice(1, 33)), view: Uint8Array.from(bytes.slice(33, 65)) };
 }
 
@@ -73,7 +78,9 @@ export async function buildSaltBox(payoutAddress: string, saltHex: string): Prom
     if (!saltHex || saltHex === ZERO_SALT) return null;
     const keys = decodeMoneroAddress(payoutAddress);
     if (!keys) return null;
-    let r = leToBig(crypto.getRandomValues(new Uint8Array(32))) % L;
+    // 64 random bytes reduced mod ℓ — the extra width makes the modulo bias
+    // negligible (32 bytes would be slightly biased), per spec.
+    let r = leToBig(crypto.getRandomValues(new Uint8Array(64))) % L;
     if (r === 0n) r = 1n;
     const viewPoint = Point.fromBytes(keys.view);
     const R = keys.net === 42 ? Point.fromBytes(keys.spend).multiply(r) : Point.BASE.multiply(r);

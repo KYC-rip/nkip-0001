@@ -9,7 +9,7 @@ import {
   type Nkip01Receipt,
 } from '../src/receipt.js';
 import { buildSaltBox, recoverSaltBox, decodeMoneroAddress } from '../src/saltBox.js';
-import { buildSaltNip44 } from '../src/nostr.js';
+import { buildSaltNip44, recoverSaltNip44 } from '../src/nostr.js';
 
 const load = (f: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`./fixtures/${f}`, import.meta.url)), 'utf8'));
 const V1 = load('nkip01-vectors-v1.json');
@@ -43,9 +43,14 @@ describe('NKIP-0001 v2 salted commitment + salt recovery (official vectors)', ()
     }
   });
 
-  it('decodes Monero payout addresses (primary + subaddress)', () => {
+  it('decodes Monero payout addresses (primary + subaddress) and rejects bad input', () => {
     expect(decodeMoneroAddress(V2.cases[0].receipt.payout_address)?.net).toBe(18);
     expect(decodeMoneroAddress(V2.cases[1].receipt.payout_address)?.net).toBe(42);
+    // Checksum: a single mistyped character must NOT decode.
+    const good = V2.cases[0].receipt.payout_address as string;
+    const typo = good.slice(0, 50) + (good[50] === 'a' ? 'b' : 'a') + good.slice(51);
+    expect(decodeMoneroAddress(typo)).toBeNull();
+    expect(decodeMoneroAddress('not an address')).toBeNull();
   });
 
   it('wallet recovers the salt from the vector salt_box', async () => {
@@ -77,9 +82,13 @@ describe('NKIP-0001 v2 salted commitment + salt recovery (official vectors)', ()
     const salt = V2.cases[0].receipt.salt;
     const ct = buildSaltNip44(Buffer.from(issuerPriv).toString('hex'), recPub, salt);
     expect(ct).toBeTruthy();
+    // recipient recovers with the library's own recoverSaltNip44
+    expect(recoverSaltNip44(Buffer.from(recPriv).toString('hex'), issuerPub, ct!)).toBe(salt);
+    // and matches a raw nip44 decrypt
     expect(nip44.decrypt(ct!, nip44.getConversationKey(recPriv, issuerPub))).toBe(salt);
     // guards
     expect(buildSaltNip44(Buffer.from(issuerPriv).toString('hex'), 'bad', salt)).toBeNull();
     expect(buildSaltNip44('', recPub, salt)).toBeNull();
+    expect(recoverSaltNip44(Buffer.from(recPriv).toString('hex'), 'bad', ct!)).toBeNull();
   });
 });
